@@ -1,0 +1,99 @@
+#include "misc.h"
+#include "stm32f4xx.h"
+#include "stm32f4xx_rcc.h"
+#include "stm32f4xx_usart.h"
+#include "stm32f4xx_gpio.h"
+volatile int c=0;
+volatile uint16_t a=10;
+void pin_init()
+{
+	GPIO_InitTypeDef UsartPin;
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+	GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_UART4);
+	GPIO_PinAFConfig(GPIOC, GPIO_PinSource12, GPIO_AF_UART5);
+	UsartPin.GPIO_Pin = GPIO_Pin_11 | GPIO_Pin_12;
+	UsartPin.GPIO_Mode = GPIO_Mode_AF;
+	UsartPin.GPIO_OType = GPIO_OType_PP;
+	UsartPin.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	UsartPin.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_Init(GPIOC, &UsartPin);
+}
+void ledInit()
+{
+	GPIO_InitTypeDef LedPin;
+		RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+		LedPin.GPIO_Pin = GPIO_Pin_12 | GPIO_Pin_13;
+		LedPin.GPIO_Mode = GPIO_Mode_OUT;
+		LedPin.GPIO_OType = GPIO_OType_PP;
+		LedPin.GPIO_PuPd = GPIO_PuPd_UP;
+		LedPin.GPIO_Speed = GPIO_Speed_100MHz;
+		GPIO_Init(GPIOD, &LedPin);
+}
+void usartinit()
+{
+	USART_InitTypeDef USART_Transmit;
+	USART_InitTypeDef USART_Receive;
+	NVIC_InitTypeDef NVIC_InitStruct;
+
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART5, ENABLE);
+
+	USART_Transmit.USART_BaudRate = 9600;
+	USART_Transmit.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+	USART_Transmit.USART_Mode = USART_Mode_Tx;
+	USART_Transmit.USART_Parity = USART_Parity_No;
+	USART_Transmit.USART_StopBits = USART_StopBits_1;
+	USART_Transmit.USART_WordLength = USART_WordLength_8b;
+	USART_Init(UART5, &USART_Transmit);
+	USART_Cmd(UART5, ENABLE);
+
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART4, ENABLE);
+		USART_Receive.USART_BaudRate = 9600;
+		USART_Receive.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+		USART_Receive.USART_Mode = USART_Mode_Rx;
+		USART_Receive.USART_Parity = USART_Parity_No;
+		USART_Receive.USART_StopBits = USART_StopBits_1;
+		USART_Receive.USART_WordLength = USART_WordLength_8b;
+		USART_Init(UART4, &USART_Receive);
+
+		USART_Cmd(UART4, ENABLE);
+
+
+
+	/*USART_ITConfig(UART4, USART_IT_RXNE, ENABLE);
+
+	NVIC_InitStruct.NVIC_IRQChannel = UART4_IRQn;
+	NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0;
+	NVIC_Init(&NVIC_InitStruct);*/
+}
+/*void USART1_IRQHandler(void)
+{
+
+    if(USART_GetFlagStatus(UART4, USART_IT_RXNE) != RESET)
+    {
+    	GPIO_ResetBits(GPIOD,GPIO_Pin_13);
+        //USART_ClearFlag(UART4,USART_FLAG_RXNE);
+    }
+}*/
+int main()
+{
+	pin_init();
+	usartinit();USART_ClearFlag(UART4,USART_FLAG_RXNE);USART_ClearFlag(UART5,USART_FLAG_TXE);
+	ledInit();
+
+	GPIO_SetBits(GPIOD,GPIO_Pin_13);
+	while(1){
+	while(USART_GetFlagStatus(UART5, USART_FLAG_TXE) != RESET)
+	            {
+					GPIO_SetBits(GPIOD,GPIO_Pin_12);
+	            	USART_SendData(UART5,a);
+	            }
+	if(USART_GetFlagStatus(UART4, USART_FLAG_RXNE) != RESET)
+	    {
+	    	GPIO_ResetBits(GPIOD,GPIO_Pin_13);
+	        USART_ClearFlag(UART4,USART_FLAG_RXNE);
+	    }
+	}
+	return(0);
+}

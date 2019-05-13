@@ -1,0 +1,168 @@
+#include "misc.h"
+#include "stm32f4xx.h"
+#include "stm32f4xx_rcc.h"
+#include "stm32f4xx_tim.h"
+#include "stm32f4xx_adc.h"
+#include "stm32f4xx_usart.h"
+#include "stm32f4xx_gpio.h"
+int duty=80;uint16_t adcval=0;
+void usart_pin_init()
+{
+		GPIO_InitTypeDef UsartPin;
+		RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+		GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_UART4);
+		GPIO_PinAFConfig(GPIOC, GPIO_PinSource12, GPIO_AF_UART5);
+		UsartPin.GPIO_Pin = GPIO_Pin_11 | GPIO_Pin_12;
+		UsartPin.GPIO_Mode = GPIO_Mode_AF;
+		UsartPin.GPIO_OType = GPIO_OType_PP;
+		UsartPin.GPIO_PuPd = GPIO_PuPd_NOPULL;
+		UsartPin.GPIO_Speed = GPIO_Speed_100MHz;
+		GPIO_Init(GPIOC, &UsartPin);
+}
+void usartinit()
+{
+	USART_InitTypeDef USART_Transmit;
+		USART_InitTypeDef USART_Receive;
+		//NVIC_InitTypeDef NVIC_InitStruct;
+
+		RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART5, ENABLE);
+
+		USART_Transmit.USART_BaudRate = 9600;
+		USART_Transmit.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+		USART_Transmit.USART_Mode = USART_Mode_Tx;
+		USART_Transmit.USART_Parity = USART_Parity_No;
+		USART_Transmit.USART_StopBits = USART_StopBits_1;
+		USART_Transmit.USART_WordLength = USART_WordLength_8b;
+		USART_Init(UART5, &USART_Transmit);
+		USART_Cmd(UART5, ENABLE);
+
+		RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART4, ENABLE);
+			USART_Receive.USART_BaudRate = 9600;
+			USART_Receive.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+			USART_Receive.USART_Mode = USART_Mode_Rx;
+			USART_Receive.USART_Parity = USART_Parity_No;
+			USART_Receive.USART_StopBits = USART_StopBits_1;
+			USART_Receive.USART_WordLength = USART_WordLength_8b;
+			USART_Init(UART4, &USART_Receive);
+
+			USART_Cmd(UART4, ENABLE);
+}
+
+/*void USART1_IRQHandler(void)
+{
+	if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
+			    {
+			        duty=USART_ReceiveData(USART1)/65536*100;
+			    }
+}*/
+/////////////////////////////////////////PWM Code
+void InitializeTimer()
+{
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
+
+    TIM_TimeBaseInitTypeDef timerInitStructure;
+    timerInitStructure.TIM_Prescaler = 400;
+    timerInitStructure.TIM_CounterMode = TIM_CounterMode_Up;
+    timerInitStructure.TIM_Period = 82;
+    timerInitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
+    timerInitStructure.TIM_RepetitionCounter = 0;
+    TIM_TimeBaseInit(TIM4, &timerInitStructure);
+    TIM_Cmd(TIM4, ENABLE);
+}
+void InitializePWMChannel()
+{
+    TIM_OCInitTypeDef outputChannelInit = {0,};
+    outputChannelInit.TIM_OCMode = TIM_OCMode_PWM1;
+    outputChannelInit.TIM_Pulse = duty*82;
+    outputChannelInit.TIM_OutputState = TIM_OutputState_Enable;
+    outputChannelInit.TIM_OCPolarity = TIM_OCPolarity_High;
+
+    TIM_OC1Init(TIM4, &outputChannelInit);
+    TIM_OC1PreloadConfig(TIM4, TIM_OCPreload_Enable);
+
+    GPIO_PinAFConfig(GPIOD, GPIO_PinSource12, GPIO_AF_TIM4);
+}
+void InitializeLEDs()
+{
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+
+    GPIO_InitTypeDef gpioStructure;
+    gpioStructure.GPIO_Pin = GPIO_Pin_12;
+    gpioStructure.GPIO_Mode = GPIO_Mode_AF;
+    gpioStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOD, &gpioStructure);
+
+}
+void ledInit()
+{
+	GPIO_InitTypeDef LedPin;
+		RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+		LedPin.GPIO_Pin = GPIO_Pin_13;
+		LedPin.GPIO_Mode = GPIO_Mode_OUT;
+		LedPin.GPIO_OType = GPIO_OType_PP;
+		LedPin.GPIO_PuPd = GPIO_PuPd_UP;
+		LedPin.GPIO_Speed = GPIO_Speed_100MHz;
+		GPIO_Init(GPIOD, &LedPin);
+}
+void adc_init(void)
+{//b1
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+
+    GPIO_InitTypeDef GPIO_InitStruct;
+    GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AN;
+    GPIO_InitStruct.GPIO_Pin = GPIO_Pin_1;
+    GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    ADC_InitTypeDef ADC_InitStruct;
+    ADC_InitStruct.ADC_ContinuousConvMode = ENABLE;
+    ADC_InitStruct.ADC_DataAlign = ADC_DataAlign_Right;
+    ADC_InitStruct.ADC_ExternalTrigConv = DISABLE;
+    ADC_InitStruct.ADC_ExternalTrigConvEdge =ADC_ExternalTrigConvEdge_None;
+    ADC_InitStruct.ADC_NbrOfConversion = 1;
+    ADC_InitStruct.ADC_Resolution = ADC_Resolution_8b;
+    ADC_InitStruct.ADC_ScanConvMode = DISABLE;
+    ADC_Init(ADC1, &ADC_InitStruct);
+    ADC_Cmd(ADC1, ENABLE);
+    ADC_RegularChannelConfig(ADC1, ADC_Channel_9, 1,ADC_SampleTime_84Cycles);
+}
+/*
+uint16_t ADC_Read(void)
+{
+    ADC_SoftwareStartConv(ADC1);
+    while (!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC));
+    return ADC_GetConversionValue(ADC1);
+}*/
+
+int main()
+{
+	InitializeTimer();InitializeLEDs();	 InitializePWMChannel();ledInit();
+	usart_pin_init();usartinit();
+	 adc_init();
+	//GPIO_SetBits(GPIOD,GPIO_Pin_12);
+	while(1){
+		InitializeTimer();InitializeLEDs();	 InitializePWMChannel();
+		ADC_SoftwareStartConv(ADC1);
+		    while (!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC));
+		adcval =ADC_GetConversionValue(ADC1);
+		USART_SendData(UART5, adcval);
+		while(USART_GetFlagStatus(UART5, USART_FLAG_TXE) == RESET)
+		            {
+					//	GPIO_SetBits(GPIOD,GPIO_Pin_13);//USART_SendData(UART5, adcval);
+		            }
+
+
+
+					    while(USART_GetFlagStatus(UART4,USART_FLAG_RXNE==RESET));
+			//GPIO_ResetBits(GPIOD,GPIO_Pin_13);//USART_SendData(UART5, adcval);
+					        duty=USART_ReceiveData(UART4)/256;
+					        if (adcval<150)
+					        	GPIO_SetBits(GPIOD,GPIO_Pin_13);//USART_SendData(UART5, adcval);
+					        else
+					        	GPIO_ResetBits(GPIOD,GPIO_Pin_13);//USART_SendData(UART5, adcval);
+
+
+	}
+	return(0);
+}
